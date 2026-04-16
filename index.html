@@ -257,8 +257,8 @@
 
 <div class="tabs">
   <button class="tab active" id="tabWrite" onclick="switchTab('write')">✦ Erfahrung teilen</button>
-  <button class="tab" id="tabView" onclick="switchTab('view')">Alle Berichte</button>
   <button class="tab" id="tabInfo" onclick="switchTab('info')">📖 Was ist Diskriminierung?</button>
+  <button class="tab" id="tabView" onclick="switchTab('view')">Alle Berichte</button>
   <div style="margin-left:auto;display:flex;align-items:center">
     <button class="tab" id="adminTabBtn" style="display:none;color:var(--green)" onclick="switchTab('admin')">⬡ Admin</button>
   </div>
@@ -403,54 +403,53 @@
   const INFO_DATA = [
     {
       art:'Rassismus', emoji:'✊', tagClass:'tag-Rassismus',
-      def:'Schlechterbehandlung aufgrund von Hautfarbe, ethnischer Zugehörigkeit oder als "fremd" wahrgenommener Herkunft.',
-      examples:['Beleidigungen oder Witze über Hautfarbe oder Herkunft','Keine Wohnung bekommen, weil der Name "ausländisch" klingt','Am Eingang einer Bar abgewiesen werden','In einem Laden dauerhaft beobachtet oder verdächtigt werden','Ständig gefragt werden: „Wo kommst du wirklich her?"'],
-      actions:['📝 Den Vorfall dokumentieren: Datum, Ort, Zeugen, genaue Aussagen aufschreiben','🤝 Vertrauensperson einweihen — du musst das nicht alleine tragen','⚖️ Antidiskriminierungsstelle des Bundes kostenlos kontaktieren','📢 Bei Hasskriminalität Strafanzeige erstatten','💬 In deiner Schule / Uni oder Betrieb den Vorfall melden']
+      def:'Rassismus in der Schule bedeutet, dass jemand aufgrund seiner Hautfarbe, Herkunft oder als "fremd" wahrgenommener Merkmale beleidigt, ausgegrenzt oder schlechter behandelt wird.',
+      examples:['Rassistische Witze oder Beleidigungen im Unterricht oder in der Pause','„Wo kommst du wirklich her?" — ständig als Ausländer behandelt werden, obwohl man hier geboren ist','Aus Gruppenarbeiten oder Freundesgruppen ausgeschlossen werden','Im Unterricht ignoriert werden, während andere drangenommen werden','Akzente oder Aussehen imitiert werden als "Witz"','Als einzige Person of Color immer als "Vertreter" einer ganzen Gruppe gesehen werden'],
+      actions:['📝 Vorfall aufschreiben: Datum, Ort, was genau gesagt wurde, wer dabei war','🧑‍🏫 Vertrauenslehrkraft oder Schulberater/in ansprechen','👨‍👩‍👧 Eltern informieren und gemeinsam handeln','📢 Schulleitung einschalten, wenn die Lehrkraft nicht reagiert','💬 Mit Freunden reden — du musst das nicht alleine tragen','🏛️ Antidiskriminierungsstelle des Bundes: 0800 222 2 333 (kostenlos)']
     },
     {
       art:'Sexismus', emoji:'♀️', tagClass:'tag-Sexismus',
-      def:'Benachteiligung oder Herabsetzung aufgrund des Geschlechts — betrifft alle Geschlechter, am häufigsten Frauen und nicht-binäre Personen.',
-      examples:['Anzügliche Kommentare über das Aussehen am Arbeitsplatz','Für dieselbe Stelle weniger Gehalt bekommen als männliche Kollegen','„Du kannst das doch nicht, du bist doch eine Frau!"','Unerwünschte Berührungen oder Nachrichten','Ideen von Frauen werden ignoriert, von Männern übernommen']  ,
-      actions:['📝 Alles schriftlich festhalten, Screenshots sichern','🚫 Grenzen klar benennen: „Das ist nicht in Ordnung."','🏢 HR-Abteilung oder Gleichstellungsbeauftragte kontaktieren','⚖️ AGG (Allgemeines Gleichbehandlungsgesetz) gilt auch hier','📞 Hilfetelefon Gewalt gegen Frauen: 08000 116 016 (kostenlos, 24/7)']
+      def:'Sexismus in der Schule bedeutet, dass jemand aufgrund seines Geschlechts benachteiligt, abgewertet oder belästigt wird — egal ob Mädchen, Junge oder nicht-binäre Person.',
+      examples:['„Mädchen sind in Mathe oder Sport schlechter" — von Mitschüler/innen oder sogar Lehrkräften','Anzügliche Kommentare oder Bewertungen über das Aussehen','Unerwünschte Berührungen oder aufdringliche Nachrichten, auch per Handy','Mädchen werden im Unterricht seltener drangenommen','„Stell dich nicht so an" — Jungen werden nicht ernst genommen wenn sie Gefühle zeigen','Sexistische Witze oder Sprüche in Klassenchats'],
+      actions:['🚫 Grenzen klar ansprechen: „Das ist nicht okay und ich möchte das nicht."','📱 Screenshots von Nachrichten sichern als Beweis','🧑‍🏫 Vertrauenslehrkraft, Schulberater/in oder Gleichstellungsbeauftragte kontaktieren','👨‍👩‍👧 Eltern einbeziehen','📞 Hilfetelefon Gewalt gegen Frauen: 08000 116 016 (kostenlos, 24/7)','⚖️ Bei körperlichen Übergriffen sofort Schulleitung und ggf. Polizei informieren']
     },
     {
       art:'LGBTQ+', emoji:'🏳️‍🌈', tagClass:'tag-LGBTQ',
-      def:'Diskriminierung aufgrund sexueller Orientierung oder Geschlechtsidentität — z. B. gegenüber lesbischen, schwulen, bisexuellen, trans* oder nicht-binären Personen.',
-      examples:['Homophobe oder transfeindliche Beleidigungen','Aus dem Job entlassen oder nicht eingestellt werden','Im Gesundheitswesen nicht ernst genommen werden','„Das ist doch nur eine Phase" oder Ähnliches','Outing ohne Einwilligung']  ,
-      actions:['🌈 LSVD-Beratung (Lesben- und Schwulenverband) kontaktieren','📝 Vorfall dokumentieren und Zeugen benennen','⚖️ Diskriminierung am Arbeitsplatz unter das AGG fällt','🏥 Bei medizinischer Diskriminierung Patientenbeschwerdestelle','💬 LSVD-Helpline: 0221 925961-0']
+      def:'Diskriminierung aufgrund sexueller Orientierung oder Geschlechtsidentität in der Schule — z. B. gegenüber schwulen, lesbischen, bisexuellen, trans* oder nicht-binären Schüler/innen.',
+      examples:['Homo- oder transphobe Beleidigungen wie "schwul" als Schimpfwort','Outing ohne Einwilligung — jemand verrät deine Identität ohne Erlaubnis','Ausgrenzung aus der Gruppe wenn die eigene Identität bekannt wird','Abwertende Kommentare über LGBTQ+-Themen im Unterricht','Toiletten oder Umkleiden werden zum Problem','Cybermobbing wegen sexueller Orientierung oder Geschlechtsidentität'],
+      actions:['💙 Mit einer Vertrauensperson reden — Lehrkraft, Schulberater/in oder jemand dem du vertraust','📝 Vorfälle dokumentieren, Screenshots sichern','🏫 Schulleitung einschalten bei wiederholten Vorfällen','🌈 LSVD-Helpdesk für junge Menschen: helpdesk@lsvd.de','📞 Queere Jugendberatung in vielen Städten — „queere Jugendberatung + deine Stadt" googeln','💬 Nummer gegen Kummer: 0800 111 0 333 (kostenlos, Mo–Sa 14–20 Uhr)']
     },
     {
       art:'Behinderung', emoji:'♿', tagClass:'tag-Behinderung',
-      def:'Benachteiligung aufgrund körperlicher, geistiger, psychischer oder chronischer Erkrankungen — auch Ableismus genannt.',
-      examples:['Gebäude ohne Rollstuhlzugang','„Du schaust aber nicht krank aus" — Unsichtbare Behinderungen klein machen','Keine Beförderung wegen einer psychischen Erkrankung','Mitleid statt Respekt — behandelt werden wie hilflos','Ausgrenzung aus sozialen Aktivitäten']  ,
-      actions:['🏛️ VdK (Sozialverband Deutschland) berät kostenlos zu Rechten','📋 Schwerbehindertenausweis prüfen — er schützt im Arbeitsleben','⚖️ Sozialgesetzbuch IX schützt Menschen mit Behinderung','💼 Betriebsrat oder Schwerbehindertenvertretung ansprechen','📞 Ergänzende unabhängige Teilhabeberatung (EUTB): 0800 200 2152']
+      def:'Ableismus in der Schule bedeutet, dass Schüler/innen mit körperlichen, geistigen, psychischen oder chronischen Erkrankungen benachteiligt oder ausgegrenzt werden.',
+      examples:['Nachmachen oder Lachen über Bewegungen, Sprache oder Verhalten','Ausgrenzung bei Gruppenarbeiten oder in der Pause','„Du schaust doch nicht krank aus" — ADHS, Depressionen oder andere unsichtbare Erkrankungen werden kleingeredet','Lehrkräfte nehmen Nachteilsausgleiche nicht ernst','Mobbing wegen Hilfsmitteln wie Hörgerät, Rollstuhl oder Brille','Schulgebäude oder Materialien sind nicht barrierefrei zugänglich'],
+      actions:['🧑‍🏫 Mit Klassenlehrer/in oder Schulberater/in sprechen','📋 Nachteilsausgleich beantragen wenn noch keiner vorhanden','👨‍👩‍👧 Eltern oder Erziehungsberechtigte einbeziehen','🏫 Schulleitung oder Inklusionsbeauftragte informieren','📞 VdK Sozialverband berät kostenlos: www.vdk.de','💬 Mobbing melden — Schule hat eine Fürsorgepflicht']
     },
     {
       art:'Religion', emoji:'🕊️', tagClass:'tag-Religion',
-      def:'Benachteiligung aufgrund religiöser Überzeugung oder Weltanschauung — betrifft alle Religionen und auch Konfessionslose.',
-      examples:['Das Tragen eines Hijabs oder einer Kippa verboten','Gebetszeiten oder religiöse Feiertage nicht respektiert','Religiöse Witze oder Beleidigungen','Keine Stelle bekommen, weil man religiös ist','Für eine Religionsgemeinschaft pauschal verurteilt werden']  ,
-      actions:['📝 Vorfall dokumentieren und ggf. Zeugen benennen','⚖️ AGG schützt vor Diskriminierung wegen Religion','🕌 Religiöse Gemeinschaft oder Moscheegemeinde um Unterstützung bitten','🏛️ Antidiskriminierungsstelle des Bundes einschalten','📢 Im Betrieb: Betriebsrat informieren']
+      def:'Religiöse Diskriminierung in der Schule: jemand wird wegen seines Glaubens, seiner religiösen Symbole oder Praktiken beleidigt, ausgegrenzt oder schlechter behandelt.',
+      examples:['Beleidigungen wegen Kopftuch, Kippa, Kreuz oder anderen religiösen Symbolen','„Du glaubst doch nur daran, weil deine Eltern das so wollen"','Aus der Gruppe ausgeschlossen werden, weil man religiös ist oder nicht','Lehrkräfte respektieren keine Gebetszeiten oder Speisevorschriften (z. B. in der Mensa)','Pauschalurteile: alle Angehörigen einer Religion werden für Dinge anderer verantwortlich gemacht','Religiöse Feiertage werden nicht als Entschuldigungsgrund anerkannt'],
+      actions:['🧑‍🏫 Lehrkraft oder Schulberater/in ansprechen','📝 Vorfälle dokumentieren','🏫 Schulleitung kontaktieren bei wiederholten Vorfällen','⚖️ Religionsfreiheit ist im Grundgesetz garantiert','🏛️ Antidiskriminierungsstelle des Bundes: 0800 222 2 333','👨‍👩‍👧 Eltern informieren und gemeinsam das Gespräch mit der Schule suchen']
     },
     {
       art:'Alter', emoji:'🕰️', tagClass:'tag-Alter',
-      def:'Benachteiligung aufgrund des Lebensalters — kann ältere UND jüngere Menschen treffen.',
-      examples:['„Du bist doch noch zu jung, um das zu verstehen"','Nicht eingestellt werden, weil man „zu alt" sei','Technologieprojekte nur an junge Kollegen vergeben','Rentnern wird weniger Aufmerksamkeit in der Arztpraxis geschenkt','Jugendliche werden in Geschäften automatisch verdächtigt']  ,
-      actions:['⚖️ Altersdiskriminierung ist nach dem AGG verboten','📝 Stellenausschreibungen mit Altersangaben können illegal sein — dokumentieren','🏛️ Antidiskriminierungsstelle des Bundes kontaktieren','💼 Betriebsrat oder Gewerkschaft einschalten','📞 Seniorenberatung der Caritas oder AWO bei Altersdiskriminierung']
+      def:'Altersdiskriminierung in der Schule trifft oft jüngere Schüler/innen — sie werden von Älteren nicht ernst genommen, unter Druck gesetzt oder ausgenutzt.',
+      examples:['Jüngere Schüler/innen werden von Älteren gemobbt oder zur Erledigung von Aufgaben gezwungen','„Du bist doch noch zu klein, um das zu verstehen" — von Lehrkräften oder Älteren','Jüngere werden bei Gruppenentscheidungen übergangen','Lehrkräfte nehmen Beschwerden jüngerer Schüler/innen weniger ernst','Neue Schüler/innen werden wegen ihres Jahrgangs ausgegrenzt','Ältere dürfen Jüngere anschreien oder anrempeln ohne Konsequenzen'],
+      actions:['🤝 Mit einer Vertrauensperson reden','🧑‍🏫 Lehrkraft oder Schulberater/in informieren','📝 Vorfälle mit Datum und Beschreibung notieren','🏫 Schulleitung einschalten bei Mobbing','👨‍👩‍👧 Eltern informieren','💬 Streitschlichter/innen an der Schule ansprechen, falls vorhanden']
     },
     {
       art:'Herkunft', emoji:'🌍', tagClass:'tag-Herkunft',
-      def:'Benachteiligung aufgrund nationaler Herkunft, Staatsbürgerschaft oder Sprache.',
-      examples:['Keine Wohnung, weil man aus einem bestimmten Land kommt','Am Arbeitsplatz aufgrund des Akzents belächelt werden','„Ihr Deutschen macht das alle so…" — Nationalitäten pauschalisieren','Niedrigerer Lohn für gleiche Arbeit','Auf Formularen werden nur bestimmte Länder akzeptiert']  ,
-      actions:['📝 Vorfall detailliert festhalten — Beweise sichern','🏛️ Migrantenorganisationen bieten oft kostenlose Rechtsberatung','⚖️ AGG und EU-Gleichbehandlungsrichtlinie gelten hier','📞 Faire Integration berät Geflüchtete: www.faire-integration.de','🤝 Integrationsbeauftragte der Stadt oder Gemeinde kontaktieren']
+      def:'Diskriminierung aufgrund nationaler Herkunft oder Staatsbürgerschaft — betrifft Schüler/innen mit Migrationshintergrund oder aus bestimmten Ländern.',
+      examples:['Beleidigt werden wegen der Herkunft oder Nationalität','„Ihr aus [Land] macht das alle so…" — Verallgemeinerungen über ganze Nationen','In der Pause in der eigenen Sprache reden und dafür angemacht werden','Lehrkräfte haben niedrigere Erwartungen aufgrund der Herkunft','Ausgrenzung aus Gruppen wegen der Nationalität','Schwierigkeiten bei der Anmeldung oder bürokratische Hürden wegen Herkunft'],
+      actions:['🧑‍🏫 Vertrauenslehrkraft oder Schulberater/in ansprechen','📝 Vorfall dokumentieren','🏫 Schulleitung einschalten','🌐 Faire Integration berät mehrsprachig: www.faire-integration.de','🏛️ Antidiskriminierungsstelle des Bundes: 0800 222 2 333','👨‍👩‍👧 Eltern oder Vertrauenspersonen aus der Community einbeziehen']
     },
     {
       art:'Sonstiges', emoji:'💡', tagClass:'tag-Sonstiges',
-      def:'Diskriminierung kann viele weitere Formen annehmen — z. B. aufgrund von Körpergröße, Gewicht, sozialer Herkunft, Obdachlosigkeit oder politischer Überzeugung.',
-      examples:['Ausgrenzung wegen Armut oder sozialer Herkunft','Bodyshaming am Arbeitsplatz oder in der Schule','Politische Meinungen führen zu Jobverlust','Diskriminierung wegen Schwangerschaft','Menschen in Wohnungslosigkeit werden systematisch ignoriert']  ,
-      actions:['📝 Immer dokumentieren — auch wenn es „nur" ein Kommentar war','🤝 Vertrauensperson einweihen','🏛️ Antidiskriminierungsstelle des Bundes berät zu allen Formen','⚖️ Prüfen ob das AGG greift — es deckt viele Fälle ab','💬 Beratungsstellen vor Ort suchen: www.antidiskriminierungsstelle.de/beratung']
+      def:'Diskriminierung hat viele Gesichter — auch Mobbing wegen Aussehen, Kleidung, sozialer Herkunft, psychischer Erkrankungen oder anderen Merkmalen ist Diskriminierung und niemals okay.',
+      examples:['Mobbing wegen Kleidung oder Aussehen (Bodyshaming)','Ausgrenzung wegen sozialer Herkunft — kein Geld für teure Klamotten oder Ausflüge','Cybermobbing über Social Media oder Klassenchats','Ausgelacht werden wegen Hobbys, Musik oder Interessen','Ausgrenzung wegen Familiensituation (Scheidungskind, Pflegekind, etc.)','Diskriminierung wegen psychischer Erkrankungen wie Depressionen oder Angststörungen'],
+      actions:['📝 Immer dokumentieren — auch wenn es "nur" ein Kommentar war','🤝 Vertrauensperson einweihen — du musst das nicht alleine tragen','🧑‍🏫 Schulberater/in oder Vertrauenslehrkraft ansprechen','📞 Nummer gegen Kummer: 0800 111 0 333 (kostenlos, Mo–Sa 14–20 Uhr)','🏛️ Antidiskriminierungsstelle: www.antidiskriminierungsstelle.de','💬 Online-Beratung für Jugendliche: www.jugendnotmail.de']
     }
   ];
-
   let allEntries=[], isAdmin=false, expanded=new Set(), commentsOpen=new Set(), pendingAction=null;
   const openInfoCards=new Set();
 
@@ -474,7 +473,7 @@
   // ── TABS ──
   function switchTab(t){
     ['write','view','info','admin'].forEach(id=>document.getElementById(id+'Panel').classList.toggle('active',id===t));
-    ['tabWrite','tabView','tabInfo','adminTabBtn'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.remove('active');});
+    ['tabWrite','tabInfo','tabView','adminTabBtn'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.remove('active');});
     const map={write:'tabWrite',view:'tabView',info:'tabInfo',admin:'adminTabBtn'};
     if(map[t])document.getElementById(map[t]).classList.add('active');
     if(t==='view')loadAndRenderEntries();
