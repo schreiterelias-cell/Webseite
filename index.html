@@ -256,8 +256,8 @@
 </header>
 
 <div class="tabs">
-  <button class="tab active" id="tabWrite" onclick="switchTab('write')">✦ Erfahrung teilen</button>
   <button class="tab" id="tabInfo" onclick="switchTab('info')">📖 Was ist Diskriminierung?</button>
+  <button class="tab active" id="tabWrite" onclick="switchTab('write')">✦ Erfahrung teilen</button>
   <button class="tab" id="tabView" onclick="switchTab('view')">Alle Berichte</button>
   <div style="margin-left:auto;display:flex;align-items:center">
     <button class="tab" id="adminTabBtn" style="display:none;color:var(--green)" onclick="switchTab('admin')">⬡ Admin</button>
@@ -473,7 +473,7 @@
   // ── TABS ──
   function switchTab(t){
     ['write','view','info','admin'].forEach(id=>document.getElementById(id+'Panel').classList.toggle('active',id===t));
-    ['tabWrite','tabInfo','tabView','adminTabBtn'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.remove('active');});
+    ['tabInfo','tabWrite','tabView','adminTabBtn'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.remove('active');});
     const map={write:'tabWrite',view:'tabView',info:'tabInfo',admin:'adminTabBtn'};
     if(map[t])document.getElementById(map[t]).classList.add('active');
     if(t==='view')loadAndRenderEntries();
