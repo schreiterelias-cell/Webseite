@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>WM Wetttippen 2026</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@300;400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
   --gold:#FFD700;--gold-dark:#B8860B;
@@ -389,18 +390,105 @@ const KO_MATCHES = [
 ];
 
 // ══════════════════════════════════════════════════════
-// STATE & STORAGE
+// SUPABASE KONFIGURATION
+// ══════════════════════════════════════════════════════
+const SUPABASE_URL  = 'https://axodexdogquokfbkvvud.supabase.co';
+const SUPABASE_ANON = 'sb_publishable_eqEg0F-ufQgys_TziZ4LFw_m8wDooJb';
+
+const _supa = (SUPABASE_URL !== 'DEINE_SUPABASE_URL')
+  ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON)
+  : null;
+
+if(!_supa){
+  console.warn('⚠️ Supabase nicht konfiguriert – läuft im lokalen Modus (localStorage).');
+}
+
+// ══════════════════════════════════════════════════════
+// STATE & STORAGE (localStorage als Fallback)
 // ══════════════════════════════════════════════════════
 const SK = 'wm2026_v4';
-function loadState(){try{const r=localStorage.getItem(SK);if(r)return JSON.parse(r)}catch(e){}
-  return{players:{},groupResults:{},koTeams:{},koResults:{}};}
-function saveState(){localStorage.setItem(SK,JSON.stringify(state))}
-let state=loadState(), currentPlayer=null, activeGroup='ALL', activeAdminSec='group';
+const STATE_ROW_ID = 1; // Primärschlüssel der Zeile in der Tabelle "game_state"
 
-// Ensure old saves have koTeams/koResults
+function loadState(){
+  try{const r=localStorage.getItem(SK);if(r)return JSON.parse(r)}catch(e){}
+  return{players:{},groupResults:{},koTeams:{},koResults:{}};
+}
+
+// Initialer State aus localStorage
+let state=loadState(), currentPlayer=null, activeGroup='ALL', activeAdminSec='group';
 if(!state.koTeams)state.koTeams={};
 if(!state.koResults)state.koResults={};
 if(!state.groupResults)state.groupResults=state.results||{};
+
+// ── Supabase lesen ──────────────────────────────────
+async function loadStateFromSupabase(){
+  if(!_supa) return;
+  try{
+    const {data,error}=await _supa
+      .from('game_state')
+      .select('state')
+      .eq('id', STATE_ROW_ID)
+      .single();
+    if(error){
+      if(error.code==='PGRST116'){
+        // Zeile existiert noch nicht → anlegen
+        await _supa.from('game_state').insert({id:STATE_ROW_ID, state});
+      } else { throw error; }
+    } else {
+      state = data.state;
+      if(!state.koTeams)state.koTeams={};
+      if(!state.koResults)state.koResults={};
+      if(!state.groupResults)state.groupResults={};
+      localStorage.setItem(SK, JSON.stringify(state));
+    }
+  } catch(e){ console.error('Supabase loadState Fehler:', e); }
+}
+
+// ── Supabase schreiben ──────────────────────────────
+async function saveState(){
+  localStorage.setItem(SK, JSON.stringify(state));
+  if(!_supa) return;
+  try{
+    const {error}=await _supa
+      .from('game_state')
+      .upsert({id:STATE_ROW_ID, state}, {onConflict:'id'});
+    if(error) throw error;
+  } catch(e){ console.error('Supabase saveState Fehler:', e); }
+}
+
+// ── Echtzeit-Updates (Realtime) ─────────────────────
+function setupRealtimeSync(){
+  if(!_supa) return;
+  _supa
+    .channel('game_state_changes')
+    .on('postgres_changes',{
+      event:'UPDATE', schema:'public', table:'game_state',
+      filter:`id=eq.${STATE_ROW_ID}`
+    }, payload => {
+      // Nur aktualisieren wenn der lokale State sich vom Remote unterscheidet
+      const remote = JSON.stringify(payload.new.state);
+      if(remote !== JSON.stringify(state)){
+        state = payload.new.state;
+        if(!state.koTeams)state.koTeams={};
+        if(!state.koResults)state.koResults={};
+        if(!state.groupResults)state.groupResults={};
+        localStorage.setItem(SK, JSON.stringify(state));
+        renderHome();renderTabelle();
+        if(currentPlayer) renderTippen();
+        showToast('🔄 Daten aktualisiert');
+      }
+    })
+    .subscribe();
+}
+
+// ── App starten: erst Supabase laden, dann rendern ──
+(async()=>{
+  await loadStateFromSupabase();
+  setupRealtimeSync();
+  renderHome();
+})();
+
+// Migration bereits in loadStateFromSupabase() enthalten
 
 // ══════════════════════════════════════════════════════
 // POINTS
@@ -836,8 +924,7 @@ function showToast(msg,type='s'){
   clearTimeout(_tt);_tt=setTimeout(()=>t.style.opacity='0',2500);
 }
 
-// INIT
-renderHome();
+// INIT (wird oben im async-Block gestartet)
 </script>
 </body>
 </html>
