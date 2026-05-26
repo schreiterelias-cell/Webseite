@@ -436,6 +436,7 @@ async function loadStateFromSupabase(){
       } else { throw error; }
     } else {
       state = data.state;
+      if(!state.players)state.players={};
       if(!state.koTeams)state.koTeams={};
       if(!state.koResults)state.koResults={};
       if(!state.groupResults)state.groupResults={};
