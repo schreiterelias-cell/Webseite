@@ -466,18 +466,21 @@ function setupRealtimeSync(){
       event:'UPDATE', schema:'public', table:'game_state',
       filter:`id=eq.${STATE_ROW_ID}`
     }, payload => {
-      // Nur aktualisieren wenn der lokale State sich vom Remote unterscheidet
       const remote = JSON.stringify(payload.new.state);
-      if(remote !== JSON.stringify(state)){
-        state = payload.new.state;
-        if(!state.koTeams)state.koTeams={};
-        if(!state.koResults)state.koResults={};
-        if(!state.groupResults)state.groupResults={};
-        localStorage.setItem(SK, JSON.stringify(state));
-        renderHome();renderTabelle();
-        if(currentPlayer) renderTippen();
-        showToast('🔄 Daten aktualisiert');
-      }
+      if(remote === JSON.stringify(state)) return;
+      // Nicht neu rendern wenn der User gerade in ein Tipp-Feld tippt
+      const active = document.activeElement;
+      const isTyping = active && active.classList.contains('score-input');
+      state = payload.new.state;
+      if(!state.players)state.players={};
+      if(!state.koTeams)state.koTeams={};
+      if(!state.koResults)state.koResults={};
+      if(!state.groupResults)state.groupResults={};
+      localStorage.setItem(SK, JSON.stringify(state));
+      renderHome();
+      renderTabelle();
+      if(!isTyping && currentPlayer) renderTippen();
+      showToast('🔄 Daten aktualisiert');
     })
     .subscribe();
 }
@@ -721,13 +724,18 @@ function setGroup(g){activeGroup=g;renderTippen()}
 function saveGroupTip(id,side,val){
   if(!currentPlayer)return;
   if(!state.players[currentPlayer].tips[id])state.players[currentPlayer].tips[id]={home:'',away:''};
-  state.players[currentPlayer].tips[id][side]=val;saveState();
+  state.players[currentPlayer].tips[id][side]=val;
+  // Nur in Supabase speichern, KEIN Re-render (Felder bleiben erhalten)
+  localStorage.setItem(SK,JSON.stringify(state));
+  if(_supa){_supa.from('game_state').upsert({id:STATE_ROW_ID,state},{onConflict:'id'}).then();}
 }
 function saveKoTip(id,side,val){
   if(!currentPlayer)return;
   if(!state.players[currentPlayer].kotips)state.players[currentPlayer].kotips={};
   if(!state.players[currentPlayer].kotips[id])state.players[currentPlayer].kotips[id]={home:'',away:''};
-  state.players[currentPlayer].kotips[id][side]=val;saveState();
+  state.players[currentPlayer].kotips[id][side]=val;
+  localStorage.setItem(SK,JSON.stringify(state));
+  if(_supa){_supa.from('game_state').upsert({id:STATE_ROW_ID,state},{onConflict:'id'}).then();}
 }
 function saveAllTips(){saveState();showToast('✅ Tipps gespeichert!');renderTippen()}
 
