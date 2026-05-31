@@ -503,7 +503,9 @@ function calcPoints(t,r,bonus=0){
   if(isNaN(tH)||isNaN(tA)||isNaN(rH)||isNaN(rA))return null;
   if(tH===rH&&tA===rA)return 3+bonus;
   const tw=tH>tA?'H':tH<tA?'A':'D',rw=rH>rA?'H':rH<rA?'A':'D';
-  return tw===rw?1+bonus:0;
+  if(tw!==rw)return 0;
+  if((tH-tA)===(rH-rA))return 2+bonus;
+  return 1+bonus;
 }
 
 function getStats(pid){
@@ -513,12 +515,12 @@ function getStats(pid){
   GROUP_MATCHES.forEach(m=>{
     const t=tips[m.id],r=state.groupResults[m.id];
     if(t&&t.home!==''&&t.away!=='')tip++;
-    if(t&&r){const pt=calcPoints(t,r);if(pt!=null){pts+=pt;if(pt===3)ex++;if(pt===1)tend++;}}
+    if(t&&r){const pt=calcPoints(t,r);if(pt!=null){pts+=pt;if(pt===3)ex++;if(pt===2||pt===1)tend++;}}
   });
   KO_MATCHES.forEach(m=>{
     const t=kotips[m.id],r=state.koResults[m.id];
     if(t&&t.home!==''&&t.away!=='')kotip++;
-    if(t&&r){const pt=calcPoints(t,r,m.bonus);if(pt!=null){pts+=pt;if(pt===3+m.bonus)ex++;else if(pt===1+m.bonus)tend++;}}
+    if(t&&r){const pt=calcPoints(t,r,m.bonus);if(pt!=null){pts+=pt;if(pt===3+m.bonus)ex++;else if(pt===2+m.bonus||pt===1+m.bonus)tend++;}}
   });
   return{pts,ex,tend,tip,kotip,total:GROUP_MATCHES.length,kototal:KO_MATCHES.length};
 }
@@ -634,6 +636,7 @@ function renderTippen(){
         if(filled&&res){
           const p=calcPoints(tip,res);
           badge=p===3?`<span class="result-badge badge-correct">✓ 3 Pkt</span>`:
+                p===2?`<span class="result-badge badge-partial">~ 2 Pkt</span>`:
                 p===1?`<span class="result-badge badge-partial">~ 1 Pkt</span>`:
                 `<span class="result-badge badge-wrong">✗ 0 Pkt</span>`;
         }
@@ -685,9 +688,10 @@ function renderTippen(){
         let badge='';
         if(filled&&res){
           const p=calcPoints(tip,res,m.bonus);
-          const maxPts=3+m.bonus;const partPts=1+m.bonus;
-          badge=p===maxPts?`<span class="result-badge badge-correct">✓ ${p} Pkt</span>`:
-                p===partPts?`<span class="result-badge badge-partial">~ ${p} Pkt</span>`:
+          const maxPts=3+m.bonus;const diffPts=2+m.bonus;const partPts=1+m.bonus;
+          badge=p===maxPts?`<span class="result-badge badge-correct">✓  Pkt</span>`:
+                p===diffPts?`<span class="result-badge badge-partial">~  Pkt</span>`:
+                p===partPts?`<span class="result-badge badge-partial">~  Pkt</span>`:
                 `<span class="result-badge badge-wrong">✗ 0 Pkt</span>`;
         }
         html+=`<div class="match-card${filled?' filled':''}${res?' has-result':''}${locked?' ko-locked':''}">
