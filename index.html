@@ -120,6 +120,20 @@ input[type=text]::placeholder{color:var(--muted)}
   outline:none;width:100%;transition:border-color .2s}
 .ko-team-field:focus{border-color:var(--gold)}
 .ko-team-field::placeholder{color:var(--muted)}
+/* LOCK */
+.lock-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:20px;
+  font-size:.65rem;font-weight:700;letter-spacing:.8px;text-transform:uppercase;
+  background:rgba(231,76,60,.12);color:var(--red);border:1px solid rgba(231,76,60,.3)}
+.match-card.tip-locked{border-color:rgba(231,76,60,.25);opacity:.75}
+.match-card.tip-locked .score-input{cursor:not-allowed}
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal-box{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:26px;width:100%;max-width:380px;box-shadow:0 8px 40px rgba(0,0,0,.6)}
+.modal-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:2px;color:var(--gold);margin-bottom:16px}
+.modal-box input[type=password]{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
+  padding:11px 14px;color:var(--text);font-family:'Barlow',sans-serif;font-size:1rem;outline:none;margin-bottom:12px;transition:border-color .2s}
+.modal-box input[type=password]:focus{border-color:var(--gold)}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end}
 /* ALERT */
 .alert{padding:10px 15px;border-radius:8px;font-size:.86rem;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px}
 .alert-success{background:rgba(46,204,113,.12);border:1px solid rgba(46,204,113,.3);color:var(--green-light)}
@@ -251,6 +265,28 @@ input[type=text]::placeholder{color:var(--muted)}
 <div id="screen-admin" class="screen">
   <div class="card">
     <div class="card-title">⚙️ Admin – Ergebnisse &amp; K.o.-Teams</div>
+
+    <!-- PASSWORT SETUP -->
+    <div id="adminLockSetup" style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:18px">
+      <div class="admin-section-title" style="margin-bottom:10px">🔒 Tipp-Sperre (Passwort)</div>
+      <div id="lockPwStatus" style="font-size:.8rem;color:var(--muted);margin-bottom:8px">
+        Noch kein Passwort gesetzt. Setze eines, um Tipps nach Spielbeginn sperren zu können.
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input type="password" id="lockPwInput" placeholder="Admin-Passwort..." maxlength="50"
+          style="flex:1;min-width:160px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-family:'Barlow',sans-serif;font-size:.9rem;outline:none"
+          onkeydown="if(event.key==='Enter')setLockPassword()">
+        <button class="btn btn-gold btn-sm" onclick="setLockPassword()">Passwort setzen</button>
+        <button class="btn btn-outline btn-sm" onclick="clearLockPassword()" id="clearPwBtn" style="display:none">Passwort löschen</button>
+      </div>
+      <div id="lockPwMsg" style="margin-top:8px"></div>
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-danger btn-sm" onclick="lockAllMatches()">🔒 Alle Spiele sperren</button>
+        <button class="btn btn-outline btn-sm" onclick="unlockAllMatchesPrompt()">🔓 Alle entsperren</button>
+        <span id="lockCountBadge" style="font-size:.78rem;color:var(--muted);align-self:center"></span>
+      </div>
+    </div>
+
     <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
       <button class="btn btn-outline btn-sm" onclick="showAdminSection('group')" id="abtn-group">📋 Gruppenphase</button>
       <button class="btn btn-outline btn-sm" onclick="showAdminSection('ko')" id="abtn-ko">⚡ K.o.-Teams setzen</button>
@@ -419,6 +455,8 @@ let state=loadState(), currentPlayer=null, activeGroup='ALL', activeAdminSec='gr
 if(!state.koTeams)state.koTeams={};
 if(!state.koResults)state.koResults={};
 if(!state.groupResults)state.groupResults=state.results||{};
+if(!state.lockedMatches)state.lockedMatches={};
+if(!state.lockPassword)state.lockPassword=null;
 
 // ── Supabase lesen ──────────────────────────────────
 async function loadStateFromSupabase(){
@@ -440,6 +478,8 @@ async function loadStateFromSupabase(){
       if(!state.koTeams)state.koTeams={};
       if(!state.koResults)state.koResults={};
       if(!state.groupResults)state.groupResults={};
+      if(!state.lockedMatches)state.lockedMatches={};
+      if(!state.lockPassword)state.lockPassword=null;
       localStorage.setItem(SK, JSON.stringify(state));
     }
   } catch(e){ console.error('Supabase loadState Fehler:', e); }
@@ -476,6 +516,8 @@ function setupRealtimeSync(){
       if(!state.koTeams)state.koTeams={};
       if(!state.koResults)state.koResults={};
       if(!state.groupResults)state.groupResults={};
+      if(!state.lockedMatches)state.lockedMatches={};
+      if(!state.lockPassword)state.lockPassword=null;
       localStorage.setItem(SK, JSON.stringify(state));
       renderHome();
       renderTabelle();
@@ -632,6 +674,7 @@ function renderTippen(){
         const tip=tips[m.id]||{home:'',away:''};
         const res=state.groupResults[m.id];
         const filled=tip.home!==''&&tip.away!=='';
+        const tipLocked=!!(state.lockedMatches||{})[m.id];
         let badge='';
         if(filled&&res){
           const p=calcPoints(tip,res);
@@ -640,17 +683,17 @@ function renderTippen(){
                 p===1?`<span class="result-badge badge-partial">~ 1 Pkt</span>`:
                 `<span class="result-badge badge-wrong">✗ 0 Pkt</span>`;
         }
-        html+=`<div class="match-card${filled?' filled':''}${res?' has-result':''}">
+        html+=`<div class="match-card${filled?' filled':''}${res?' has-result':''}${tipLocked?' tip-locked':''}">
           <div class="team"><span class="flag">${m.hF}</span><span>${m.home}</span></div>
           <div class="match-center">
             <div class="score-inputs">
               <input type="number" class="score-input" min="0" max="99" value="${tip.home}" placeholder="–"
-                onchange="saveGroupTip(${m.id},'home',this.value)" oninput="this.value=this.value.slice(0,2)">
+                ${tipLocked?'disabled':''} onchange="saveGroupTip(${m.id},'home',this.value)" oninput="this.value=this.value.slice(0,2)">
               <span class="score-sep">:</span>
               <input type="number" class="score-input" min="0" max="99" value="${tip.away}" placeholder="–"
-                onchange="saveGroupTip(${m.id},'away',this.value)" oninput="this.value=this.value.slice(0,2)">
+                ${tipLocked?'disabled':''} onchange="saveGroupTip(${m.id},'away',this.value)" oninput="this.value=this.value.slice(0,2)">
             </div>
-            <div class="match-meta">${m.date} · ${m.time} Uhr</div>
+            <div class="match-meta">${m.date} · ${m.time} Uhr${tipLocked?' · <span style="color:var(--red)">🔒 Gesperrt</span>':''}</div>
             ${badge?`<div style="margin-top:3px">${badge}</div>`:''}
             ${res?`<div style="font-size:.66rem;color:var(--muted);margin-top:2px">Erg: ${res.home}:${res.away}</div>`:''}
           </div>
@@ -682,6 +725,8 @@ function renderTippen(){
         const t=state.koTeams[m.id]||{};
         const homeTeam=t.home||'';const awayTeam=t.away||'';
         const locked=!homeTeam||!awayTeam;
+        const tipLocked=!!(state.lockedMatches||{})[m.id];
+        const disabledAttr=(locked||tipLocked)?'disabled':'';
         const tip=kotips[m.id]||{home:'',away:''};
         const res=state.koResults[m.id];
         const filled=tip.home!==''&&tip.away!=='';
@@ -694,18 +739,18 @@ function renderTippen(){
                 p===partPts?`<span class="result-badge badge-partial">~  Pkt</span>`:
                 `<span class="result-badge badge-wrong">✗ 0 Pkt</span>`;
         }
-        html+=`<div class="match-card${filled?' filled':''}${res?' has-result':''}${locked?' ko-locked':''}">
+        html+=`<div class="match-card${filled?' filled':''}${res?' has-result':''}${locked?' ko-locked':''}${tipLocked?' tip-locked':''}">
           <div class="team"><span class="flag">${homeTeam?'⚽':''}</span>
             <span>${homeTeam||`<span style="color:var(--muted);font-size:.75rem">${m.slot1}</span>`}</span></div>
           <div class="match-center">
             <div class="score-inputs">
               <input type="number" class="score-input" min="0" max="99" value="${tip.home}" placeholder="–"
-                ${locked?'disabled':''} onchange="saveKoTip('${m.id}','home',this.value)" oninput="this.value=this.value.slice(0,2)">
+                ${disabledAttr} onchange="saveKoTip('${m.id}','home',this.value)" oninput="this.value=this.value.slice(0,2)">
               <span class="score-sep">:</span>
               <input type="number" class="score-input" min="0" max="99" value="${tip.away}" placeholder="–"
-                ${locked?'disabled':''} onchange="saveKoTip('${m.id}','away',this.value)" oninput="this.value=this.value.slice(0,2)">
+                ${disabledAttr} onchange="saveKoTip('${m.id}','away',this.value)" oninput="this.value=this.value.slice(0,2)">
             </div>
-            <div class="match-meta">${m.date} · ${m.time} Uhr${locked?' · ⏳ Noch nicht freigeschaltet':''}</div>
+            <div class="match-meta">${m.date} · ${m.time} Uhr${locked?' · ⏳ Noch nicht freigeschaltet':tipLocked?' · <span style="color:var(--red)">🔒 Gesperrt</span>':''}</div>
             ${badge?`<div style="margin-top:3px">${badge}</div>`:''}
             ${res?`<div style="font-size:.66rem;color:var(--muted);margin-top:2px">Erg: ${res.home}:${res.away}</div>`:''}
           </div>
@@ -727,6 +772,7 @@ function setTipPhase(p){tipPhase=p;renderTippen()}
 function setGroup(g){activeGroup=g;renderTippen()}
 function saveGroupTip(id,side,val){
   if(!currentPlayer)return;
+  if((state.lockedMatches||{})[id])return showToast('🔒 Dieser Tipp ist gesperrt!','e');
   if(!state.players[currentPlayer].tips[id])state.players[currentPlayer].tips[id]={home:'',away:''};
   state.players[currentPlayer].tips[id][side]=val;
   // Nur in Supabase speichern, KEIN Re-render (Felder bleiben erhalten)
@@ -735,6 +781,7 @@ function saveGroupTip(id,side,val){
 }
 function saveKoTip(id,side,val){
   if(!currentPlayer)return;
+  if((state.lockedMatches||{})[id])return showToast('🔒 Dieser Tipp ist gesperrt!','e');
   if(!state.players[currentPlayer].kotips)state.players[currentPlayer].kotips={};
   if(!state.players[currentPlayer].kotips[id])state.players[currentPlayer].kotips[id]={home:'',away:''};
   state.players[currentPlayer].kotips[id][side]=val;
@@ -787,22 +834,29 @@ function showAdminSection(sec){
 }
 
 function renderAdmin(){
+  updateAdminLockUI();
   renderAdminGroup();
   showAdminSection(activeAdminSec);
 }
 
 function renderAdminGroup(){
   const groups=['A','B','C','D','E','F','G','H','I','J','K','L'];
-  let html='<p class="text-muted text-small mb-3">Trage die offiziellen Gruppenspielergebnisse ein.</p>';
+  let html='<p class="text-muted text-small mb-3">Trage die offiziellen Gruppenspielergebnisse ein. Mit 🔒 kannst du Tipps für ein Spiel sperren.</p>';
   groups.forEach(g=>{
     html+=`<div class="admin-section"><div class="admin-section-title">Gruppe ${g}</div>`;
     GROUP_MATCHES.filter(m=>m.group===g).forEach(m=>{
       const r=state.groupResults[m.id]||{home:'',away:''};
       const done=r.home!=='';
+      const isLocked=!!(state.lockedMatches||{})[m.id];
       html+=`<div class="admin-match">
         <div class="admin-match-header">
           <div class="admin-match-teams">${m.hF} ${m.home} <span style="color:var(--muted)">vs</span> ${m.away} ${m.aF}</div>
-          <div class="admin-match-date">${m.date} · ${m.time}</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div class="admin-match-date">${m.date} · ${m.time}</div>
+            <button class="btn btn-sm ${isLocked?'btn-danger':'btn-outline'}" style="padding:3px 9px;font-size:.7rem" onclick="toggleLockMatch(${m.id},'group')" title="${isLocked?'Sperre aufheben':'Tipps sperren'}">
+              ${isLocked?'🔒 Gesperrt':'🔓 Sperren'}
+            </button>
+          </div>
         </div>
         <div class="result-form">
           <label>Ergebnis:</label>
@@ -818,6 +872,7 @@ function renderAdminGroup(){
     html+=`</div>`;
   });
   document.getElementById('adminGroup').innerHTML=html;
+  updateLockCountBadge();
 }
 
 function renderAdminKo(){
@@ -831,6 +886,7 @@ function renderAdminKo(){
     html+=`<div class="admin-section"><div class="admin-section-title">${phase}</div>`;
     KO_MATCHES.filter(m=>m.phase===phase).forEach(m=>{
       const t=state.koTeams[m.id]||{home:'',away:''};
+      const isLocked=!!(state.lockedMatches||{})[m.id];
       html+=`<div class="admin-match">
         <div class="admin-match-header">
           <div class="admin-match-teams" style="font-size:.82rem">
@@ -848,10 +904,13 @@ function renderAdminKo(){
             <input class="ko-team-field" id="kt_${m.id}_a" value="${t.away||''}" placeholder="z.B. Frankreich">
           </div>
         </div>
-        <div style="margin-top:8px;display:flex;gap:7px;align-items:center">
+        <div style="margin-top:8px;display:flex;gap:7px;align-items:center;flex-wrap:wrap">
           <button class="btn btn-green btn-sm" onclick="saveKoTeam('${m.id}')">✓ Freischalten</button>
           ${t.home?`<button class="btn btn-danger btn-sm" onclick="deleteKoTeam('${m.id}')">✕ Löschen</button>`:''}
           ${t.home?`<span style="font-size:.74rem;color:var(--green-light)">✓ ${t.home} vs ${t.away}</span>`:''}
+          <button class="btn btn-sm ${isLocked?'btn-danger':'btn-outline'}" style="padding:3px 9px;font-size:.7rem;margin-left:auto" onclick="toggleLockMatch('${m.id}','ko')" title="${isLocked?'Sperre aufheben':'Tipps sperren'}">
+            ${isLocked?'🔒 Gesperrt':'🔓 Sperren'}
+          </button>
         </div>
       </div>`;
     });
@@ -916,6 +975,127 @@ function saveKoResult(id){
   state.koResults[id]={home:h,away:a};saveState();showToast('✅ Ergebnis gespeichert!');renderAdminKores();
 }
 function deleteKoResult(id){delete state.koResults[id];saveState();renderAdminKores();showToast('🗑️ Gelöscht')}
+
+// ══════════════════════════════════════════════════════
+// LOCK / PASSWORT
+// ══════════════════════════════════════════════════════
+async function sha256(str){
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+async function setLockPassword(){
+  const pw=document.getElementById('lockPwInput').value.trim();
+  const msg=document.getElementById('lockPwMsg');
+  if(!pw){msg.innerHTML='<div class="alert alert-error">⚠️ Bitte ein Passwort eingeben.</div>';return;}
+  const hash=await sha256(pw);
+  state.lockPassword=hash;
+  await saveState();
+  document.getElementById('lockPwInput').value='';
+  updateAdminLockUI();
+  msg.innerHTML='<div class="alert alert-success">✅ Passwort gesetzt!</div>';
+  setTimeout(()=>msg.innerHTML='',3000);
+}
+
+async function clearLockPassword(){
+  if(!await verifyLockPassword('Passwort zum Entfernen eingeben:'))return;
+  state.lockPassword=null;
+  await saveState();
+  updateAdminLockUI();
+  showToast('🔓 Passwort entfernt');
+}
+
+function updateAdminLockUI(){
+  const hasPw=!!state.lockPassword;
+  const statusEl=document.getElementById('lockPwStatus');
+  const clearBtn=document.getElementById('clearPwBtn');
+  if(!statusEl)return;
+  statusEl.textContent=hasPw?'✅ Passwort ist gesetzt. Tipps können jetzt gesperrt werden.':'Noch kein Passwort gesetzt. Setze eines, um Tipps nach Spielbeginn sperren zu können.';
+  statusEl.style.color=hasPw?'var(--green-light)':'var(--muted)';
+  if(clearBtn)clearBtn.style.display=hasPw?'':'none';
+  updateLockCountBadge();
+}
+
+function updateLockCountBadge(){
+  const el=document.getElementById('lockCountBadge');
+  if(!el)return;
+  const n=Object.keys(state.lockedMatches||{}).filter(k=>(state.lockedMatches||{})[k]).length;
+  el.textContent=n>0?`${n} Spiel${n===1?'':'e'} gesperrt`:'Keine Spiele gesperrt';
+}
+
+// Passwort-Prompt als Modal
+function verifyLockPassword(label='Admin-Passwort eingeben:'){
+  return new Promise(resolve=>{
+    if(!state.lockPassword){resolve(true);return;}
+    // Modal erzeugen
+    const overlay=document.createElement('div');
+    overlay.className='modal-overlay';
+    overlay.innerHTML=`
+      <div class="modal-box">
+        <div class="modal-title">🔐 Passwort erforderlich</div>
+        <div style="font-size:.84rem;color:var(--muted);margin-bottom:12px">${label}</div>
+        <input type="password" id="_lockPwVerify" placeholder="Passwort..." autofocus>
+        <div id="_lockPwErr" style="font-size:.8rem;color:var(--red);min-height:18px;margin-bottom:8px"></div>
+        <div class="modal-actions">
+          <button class="btn btn-outline btn-sm" id="_lockCancel">Abbrechen</button>
+          <button class="btn btn-gold btn-sm" id="_lockConfirm">Bestätigen</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const inp=overlay.querySelector('#_lockPwVerify');
+    const err=overlay.querySelector('#_lockPwErr');
+    setTimeout(()=>inp.focus(),50);
+    async function confirm(){
+      const hash=await sha256(inp.value);
+      if(hash===state.lockPassword){document.body.removeChild(overlay);resolve(true);}
+      else{err.textContent='❌ Falsches Passwort';inp.value='';inp.focus();}
+    }
+    overlay.querySelector('#_lockConfirm').onclick=confirm;
+    overlay.querySelector('#_lockCancel').onclick=()=>{document.body.removeChild(overlay);resolve(false);};
+    inp.addEventListener('keydown',e=>{if(e.key==='Enter')confirm();if(e.key==='Escape'){document.body.removeChild(overlay);resolve(false);}});
+  });
+}
+
+async function toggleLockMatch(id, type){
+  const isLocked=!!(state.lockedMatches||{})[id];
+  if(isLocked){
+    // Entsperren erfordert Passwort
+    if(!await verifyLockPassword('Passwort zum Entsperren eingeben:'))return;
+    delete state.lockedMatches[id];
+    await saveState();
+    showToast('🔓 Tipp entsperrt');
+  } else {
+    // Sperren – wenn kein Passwort gesetzt, warnen
+    if(!state.lockPassword)return showToast('⚠️ Zuerst ein Passwort setzen!','e');
+    if(!state.lockedMatches)state.lockedMatches={};
+    state.lockedMatches[id]=true;
+    await saveState();
+    showToast('🔒 Tipp gesperrt');
+  }
+  if(type==='group')renderAdminGroup();
+  else renderAdminKo();
+  if(currentPlayer)renderTippen();
+}
+
+async function lockAllMatches(){
+  if(!state.lockPassword)return showToast('⚠️ Zuerst ein Passwort setzen!','e');
+  if(!state.lockedMatches)state.lockedMatches={};
+  GROUP_MATCHES.forEach(m=>{state.lockedMatches[m.id]=true;});
+  KO_MATCHES.forEach(m=>{state.lockedMatches[m.id]=true;});
+  await saveState();
+  renderAdmin();
+  if(currentPlayer)renderTippen();
+  showToast('🔒 Alle Spiele gesperrt');
+}
+
+async function unlockAllMatchesPrompt(){
+  if(!await verifyLockPassword('Passwort zum Entsperren aller Spiele:'))return;
+  state.lockedMatches={};
+  await saveState();
+  renderAdmin();
+  if(currentPlayer)renderTippen();
+  showToast('🔓 Alle Spiele entsperrt');
+}
 
 // ══════════════════════════════════════════════════════
 // HELPERS
