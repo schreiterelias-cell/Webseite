@@ -589,12 +589,12 @@ async function saveState(){
   }
 }
 
-// ── Einzelnen Tipp sicher speichern (merge statt überschreiben) ──
-// Holt zuerst den aktuellsten Remote-State, merged den eigenen Tipp hinein
-// und schreibt das Ergebnis zurück. Verhindert, dass parallele Eingaben
-// anderer Spieler überschrieben werden ("last write wins" auf Feldebene
-// statt auf State-Ebene).
-async function saveTipField(applyFn){
+// ── Generisches sicheres Speichern (merge statt überschreiben) ──
+// Holt zuerst den aktuellsten Remote-State, merged die eigene Änderung
+// hinein und schreibt das Ergebnis zurück. Verhindert, dass parallele
+// Änderungen anderer (Tipps ODER Admin-Aktionen) überschrieben werden
+// ("last write wins" auf Feldebene statt auf State-Ebene).
+async function mergeAndSave(applyFn){
   // 1) Lokal sofort anwenden, damit die UI/State stets aktuell ist
   applyFn(state);
   localStorage.setItem(SK, JSON.stringify(state));
@@ -615,8 +615,9 @@ async function saveTipField(applyFn){
     if(!remote.koResults)remote.koResults={};
     if(!remote.groupResults)remote.groupResults={};
     if(!remote.lockedMatches)remote.lockedMatches={};
+    if(remote.lockPassword===undefined)remote.lockPassword=null;
 
-    // 3) Eigenen Tipp auf den frischen Remote-State anwenden
+    // 3) Eigene Änderung auf den frischen Remote-State anwenden
     applyFn(remote);
 
     // 4) Zurückschreiben
@@ -629,11 +630,13 @@ async function saveTipField(applyFn){
     localStorage.setItem(SK, JSON.stringify(state));
     setSaveStatus('saved');
   } catch(e){
-    console.error('Supabase saveTipField Fehler:', e);
+    console.error('Supabase mergeAndSave Fehler:', e);
     setSaveStatus('error');
     scheduleRetry();
   }
 }
+// Alias für Tipps (Lesbarkeit im Code)
+const saveTipField = mergeAndSave;
 
 // ── Bei Wiederverbindung: ausstehende Speicherung erneut versuchen ──
 window.addEventListener('online',()=>{
@@ -749,7 +752,8 @@ function registerPlayer(){
     return showMsg(msg,'e','⚠️ Name bereits vergeben.');
   const id='p_'+Date.now();
   state.players[id]={name,tips:{},kotips:{}};
-  saveState();inp.value='';
+  mergeAndSave(s=>{ if(!s.players)s.players={}; s.players[id]={name,tips:{},kotips:{}}; });
+  inp.value='';
   showMsg(msg,'s',`✅ ${name} registriert!`);
   selectPlayer(id);
 }
@@ -946,7 +950,19 @@ function saveKoTip(id,side,val){
     s.players[player].kotips[id][side]=val;
   });
 }
-function saveAllTips(){saveState();showToast('✅ Tipps gespeichert!');renderTippen()}
+function saveAllTips(){
+  const player=currentPlayer;
+  if(!player)return;
+  const myTips=JSON.parse(JSON.stringify(state.players[player].tips||{}));
+  const myKotips=JSON.parse(JSON.stringify(state.players[player].kotips||{}));
+  mergeAndSave(s=>{
+    if(!s.players)s.players={};
+    if(!s.players[player])s.players[player]={name:state.players[player]?.name||'',tips:{},kotips:{}};
+    s.players[player].tips={...(s.players[player].tips||{}),...myTips};
+    s.players[player].kotips={...(s.players[player].kotips||{}),...myKotips};
+  });
+  showToast('✅ Tipps gespeichert!');renderTippen()
+}
 
 // ══════════════════════════════════════════════════════
 // TABELLE
@@ -1114,25 +1130,43 @@ function renderAdminKores(){
 function saveGroupResult(id){
   const h=document.getElementById('gh_'+id).value,a=document.getElementById('ga_'+id).value;
   if(h===''||a==='')return showToast('⚠️ Beide Werte eingeben!','e');
-  state.groupResults[id]={home:h,away:a};saveState();showToast('✅ Ergebnis gespeichert!');renderAdminGroup();
+  state.groupResults[id]={home:h,away:a};
+  mergeAndSave(s=>{ if(!s.groupResults)s.groupResults={}; s.groupResults[id]={home:h,away:a}; });
+  showToast('✅ Ergebnis gespeichert!');renderAdminGroup();
 }
-function deleteGroupResult(id){delete state.groupResults[id];saveState();renderAdminGroup();showToast('🗑️ Gelöscht')}
+function deleteGroupResult(id){
+  delete state.groupResults[id];
+  mergeAndSave(s=>{ if(s.groupResults)delete s.groupResults[id]; });
+  renderAdminGroup();showToast('🗑️ Gelöscht')
+}
 
 function saveKoTeam(id){
   const h=document.getElementById('kt_'+id+'_h').value.trim();
   const a=document.getElementById('kt_'+id+'_a').value.trim();
   if(!h||!a)return showToast('⚠️ Beide Teams eingeben!','e');
-  state.koTeams[id]={home:h,away:a};saveState();showToast('✅ Teams freigeschaltet!');renderAdminKo();
+  state.koTeams[id]={home:h,away:a};
+  mergeAndSave(s=>{ if(!s.koTeams)s.koTeams={}; s.koTeams[id]={home:h,away:a}; });
+  showToast('✅ Teams freigeschaltet!');renderAdminKo();
 }
-function deleteKoTeam(id){delete state.koTeams[id];delete state.koResults[id];saveState();renderAdminKo();showToast('🗑️ Gelöscht')}
+function deleteKoTeam(id){
+  delete state.koTeams[id];delete state.koResults[id];
+  mergeAndSave(s=>{ if(s.koTeams)delete s.koTeams[id]; if(s.koResults)delete s.koResults[id]; });
+  renderAdminKo();showToast('🗑️ Gelöscht')
+}
 
 function saveKoResult(id){
   const h=document.getElementById('kr_'+id+'_h').value;
   const a=document.getElementById('kr_'+id+'_a').value;
   if(h===''||a==='')return showToast('⚠️ Beide Werte eingeben!','e');
-  state.koResults[id]={home:h,away:a};saveState();showToast('✅ Ergebnis gespeichert!');renderAdminKores();
+  state.koResults[id]={home:h,away:a};
+  mergeAndSave(s=>{ if(!s.koResults)s.koResults={}; s.koResults[id]={home:h,away:a}; });
+  showToast('✅ Ergebnis gespeichert!');renderAdminKores();
 }
-function deleteKoResult(id){delete state.koResults[id];saveState();renderAdminKores();showToast('🗑️ Gelöscht')}
+function deleteKoResult(id){
+  delete state.koResults[id];
+  mergeAndSave(s=>{ if(s.koResults)delete s.koResults[id]; });
+  renderAdminKores();showToast('🗑️ Gelöscht')
+}
 
 // ══════════════════════════════════════════════════════
 // LOCK / PASSWORT
@@ -1148,7 +1182,7 @@ async function setLockPassword(){
   if(!pw){msg.innerHTML='<div class="alert alert-error">⚠️ Bitte ein Passwort eingeben.</div>';return;}
   const hash=await sha256(pw);
   state.lockPassword=hash;
-  await saveState();
+  await mergeAndSave(s=>{ s.lockPassword=hash; });
   document.getElementById('lockPwInput').value='';
   updateAdminLockUI();
   msg.innerHTML='<div class="alert alert-success">✅ Passwort gesetzt!</div>';
@@ -1158,7 +1192,7 @@ async function setLockPassword(){
 async function clearLockPassword(){
   if(!await verifyLockPassword('Passwort zum Entfernen eingeben:'))return;
   state.lockPassword=null;
-  await saveState();
+  await mergeAndSave(s=>{ s.lockPassword=null; });
   updateAdminLockUI();
   showToast('🔓 Passwort entfernt');
 }
@@ -1220,14 +1254,14 @@ async function toggleLockMatch(id, type){
     // Entsperren erfordert Passwort
     if(!await verifyLockPassword('Passwort zum Entsperren eingeben:'))return;
     delete state.lockedMatches[id];
-    await saveState();
+    await mergeAndSave(s=>{ if(s.lockedMatches)delete s.lockedMatches[id]; });
     showToast('🔓 Tipp entsperrt');
   } else {
     // Sperren – wenn kein Passwort gesetzt, warnen
     if(!state.lockPassword)return showToast('⚠️ Zuerst ein Passwort setzen!','e');
     if(!state.lockedMatches)state.lockedMatches={};
     state.lockedMatches[id]=true;
-    await saveState();
+    await mergeAndSave(s=>{ if(!s.lockedMatches)s.lockedMatches={}; s.lockedMatches[id]=true; });
     showToast('🔒 Tipp gesperrt');
   }
   if(type==='group')renderAdminGroup();
@@ -1240,7 +1274,11 @@ async function lockAllMatches(){
   if(!state.lockedMatches)state.lockedMatches={};
   GROUP_MATCHES.forEach(m=>{state.lockedMatches[m.id]=true;});
   KO_MATCHES.forEach(m=>{state.lockedMatches[m.id]=true;});
-  await saveState();
+  await mergeAndSave(s=>{
+    if(!s.lockedMatches)s.lockedMatches={};
+    GROUP_MATCHES.forEach(m=>{s.lockedMatches[m.id]=true;});
+    KO_MATCHES.forEach(m=>{s.lockedMatches[m.id]=true;});
+  });
   renderAdmin();
   if(currentPlayer)renderTippen();
   showToast('🔒 Alle Spiele gesperrt');
@@ -1249,7 +1287,7 @@ async function lockAllMatches(){
 async function unlockAllMatchesPrompt(){
   if(!await verifyLockPassword('Passwort zum Entsperren aller Spiele:'))return;
   state.lockedMatches={};
-  await saveState();
+  await mergeAndSave(s=>{ s.lockedMatches={}; });
   renderAdmin();
   if(currentPlayer)renderTippen();
   showToast('🔓 Alle Spiele entsperrt');
