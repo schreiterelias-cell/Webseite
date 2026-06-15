@@ -126,6 +126,18 @@ input[type=text]::placeholder{color:var(--muted)}
   background:rgba(231,76,60,.12);color:var(--red);border:1px solid rgba(231,76,60,.3)}
 .match-card.tip-locked{border-color:rgba(231,76,60,.25);opacity:.75}
 .match-card.tip-locked .score-input{cursor:not-allowed}
+/* SAVE STATUS */
+#saveStatus{position:fixed;top:10px;right:10px;z-index:9998;display:flex;align-items:center;gap:6px;
+  padding:6px 12px;border-radius:20px;font-size:.7rem;font-weight:700;letter-spacing:.5px;
+  font-family:'Barlow',sans-serif;transition:opacity .3s,transform .3s;opacity:0;pointer-events:none;
+  box-shadow:0 2px 10px rgba(0,0,0,.3)}
+#saveStatus.show{opacity:1}
+#saveStatus.st-saving{background:rgba(243,156,18,.15);color:#f39c12;border:1px solid rgba(243,156,18,.35)}
+#saveStatus.st-saved{background:rgba(46,204,113,.15);color:var(--green-light);border:1px solid rgba(46,204,113,.35)}
+#saveStatus.st-error{background:rgba(231,76,60,.15);color:var(--red);border:1px solid rgba(231,76,60,.4)}
+#saveStatus .spin{display:inline-block;width:10px;height:10px;border:2px solid currentColor;border-right-color:transparent;
+  border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 /* MODAL */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;display:flex;align-items:center;justify-content:center;padding:16px}
 .modal-box{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:26px;width:100%;max-width:380px;box-shadow:0 8px 40px rgba(0,0,0,.6)}
@@ -169,6 +181,8 @@ input[type=text]::placeholder{color:var(--muted)}
 </style>
 </head>
 <body>
+
+<div id="saveStatus"></div>
 
 <header>
   <div>
@@ -485,17 +499,115 @@ async function loadStateFromSupabase(){
   } catch(e){ console.error('Supabase loadState Fehler:', e); }
 }
 
-// ── Supabase schreiben ──────────────────────────────
+// ── Save-Status Anzeige ──────────────────────────────
+let _saveStatusTimeout;
+function setSaveStatus(status){
+  const el=document.getElementById('saveStatus');
+  if(!el)return;
+  clearTimeout(_saveStatusTimeout);
+  el.classList.remove('st-saving','st-saved','st-error');
+  if(status==='saving'){
+    el.innerHTML='<span class="spin"></span> Speichert...';
+    el.classList.add('show','st-saving');
+  } else if(status==='saved'){
+    el.innerHTML='✓ Gespeichert';
+    el.classList.add('show','st-saved');
+    _saveStatusTimeout=setTimeout(()=>el.classList.remove('show'),1800);
+  } else if(status==='error'){
+    el.innerHTML='⚠️ Nicht gespeichert – wird erneut versucht';
+    el.classList.add('show','st-error');
+  } else if(status==='offline'){
+    el.innerHTML='⚠️ Keine Verbindung – lokal gespeichert';
+    el.classList.add('show','st-error');
+    _saveStatusTimeout=setTimeout(()=>el.classList.remove('show'),4000);
+  }
+}
+
+// ── Retry-Queue für fehlgeschlagene Speicherungen ───
+let _retryTimer=null;
+let _pendingSave=false;
+function scheduleRetry(){
+  _pendingSave=true;
+  if(_retryTimer)return;
+  _retryTimer=setTimeout(async()=>{
+    _retryTimer=null;
+    if(_pendingSave){_pendingSave=false; await saveState();}
+  },4000);
+}
+
+// ── Supabase schreiben (ganzer State, z.B. Admin-Aktionen) ──
 async function saveState(){
   localStorage.setItem(SK, JSON.stringify(state));
-  if(!_supa) return;
+  if(!_supa){return;}
+  if(!navigator.onLine){setSaveStatus('offline');scheduleRetry();return;}
+  setSaveStatus('saving');
   try{
     const {error}=await _supa
       .from('game_state')
       .upsert({id:STATE_ROW_ID, state}, {onConflict:'id'});
     if(error) throw error;
-  } catch(e){ console.error('Supabase saveState Fehler:', e); }
+    setSaveStatus('saved');
+  } catch(e){
+    console.error('Supabase saveState Fehler:', e);
+    setSaveStatus('error');
+    scheduleRetry();
+  }
 }
+
+// ── Einzelnen Tipp sicher speichern (merge statt überschreiben) ──
+// Holt zuerst den aktuellsten Remote-State, merged den eigenen Tipp hinein
+// und schreibt das Ergebnis zurück. Verhindert, dass parallele Eingaben
+// anderer Spieler überschrieben werden ("last write wins" auf Feldebene
+// statt auf State-Ebene).
+async function saveTipField(applyFn){
+  // 1) Lokal sofort anwenden, damit die UI/State stets aktuell ist
+  applyFn(state);
+  localStorage.setItem(SK, JSON.stringify(state));
+
+  if(!_supa){return;}
+  if(!navigator.onLine){setSaveStatus('offline');scheduleRetry();return;}
+
+  setSaveStatus('saving');
+  try{
+    // 2) Aktuellsten Stand vom Server holen
+    const {data,error:selErr}=await _supa
+      .from('game_state').select('state').eq('id',STATE_ROW_ID).single();
+    if(selErr) throw selErr;
+
+    let remote=data.state||{};
+    if(!remote.players)remote.players={};
+    if(!remote.koTeams)remote.koTeams={};
+    if(!remote.koResults)remote.koResults={};
+    if(!remote.groupResults)remote.groupResults={};
+    if(!remote.lockedMatches)remote.lockedMatches={};
+
+    // 3) Eigenen Tipp auf den frischen Remote-State anwenden
+    applyFn(remote);
+
+    // 4) Zurückschreiben
+    const {error:upErr}=await _supa
+      .from('game_state').upsert({id:STATE_ROW_ID,state:remote},{onConflict:'id'});
+    if(upErr) throw upErr;
+
+    // 5) Lokalen State mit dem gemergten Remote-State synchronisieren
+    state=remote;
+    localStorage.setItem(SK, JSON.stringify(state));
+    setSaveStatus('saved');
+  } catch(e){
+    console.error('Supabase saveTipField Fehler:', e);
+    setSaveStatus('error');
+    scheduleRetry();
+  }
+}
+
+// ── Bei Wiederverbindung: ausstehende Speicherung erneut versuchen ──
+window.addEventListener('online',()=>{
+  if(_pendingSave){
+    if(_retryTimer){clearTimeout(_retryTimer);_retryTimer=null;}
+    _pendingSave=false;
+    saveState();
+  }
+});
 
 // ── Echtzeit-Updates (Realtime) ─────────────────────
 function setupRealtimeSync(){
@@ -775,9 +887,14 @@ function saveGroupTip(id,side,val){
   if((state.lockedMatches||{})[id])return showToast('🔒 Dieser Tipp ist gesperrt!','e');
   if(!state.players[currentPlayer].tips[id])state.players[currentPlayer].tips[id]={home:'',away:''};
   state.players[currentPlayer].tips[id][side]=val;
-  // Nur in Supabase speichern, KEIN Re-render (Felder bleiben erhalten)
-  localStorage.setItem(SK,JSON.stringify(state));
-  if(_supa){_supa.from('game_state').upsert({id:STATE_ROW_ID,state},{onConflict:'id'}).then();}
+  const player=currentPlayer;
+  saveTipField(s=>{
+    if(!s.players)s.players={};
+    if(!s.players[player])s.players[player]={name:state.players[player]?.name||'',tips:{},kotips:{}};
+    if(!s.players[player].tips)s.players[player].tips={};
+    if(!s.players[player].tips[id])s.players[player].tips[id]={home:'',away:''};
+    s.players[player].tips[id][side]=val;
+  });
 }
 function saveKoTip(id,side,val){
   if(!currentPlayer)return;
@@ -785,8 +902,14 @@ function saveKoTip(id,side,val){
   if(!state.players[currentPlayer].kotips)state.players[currentPlayer].kotips={};
   if(!state.players[currentPlayer].kotips[id])state.players[currentPlayer].kotips[id]={home:'',away:''};
   state.players[currentPlayer].kotips[id][side]=val;
-  localStorage.setItem(SK,JSON.stringify(state));
-  if(_supa){_supa.from('game_state').upsert({id:STATE_ROW_ID,state},{onConflict:'id'}).then();}
+  const player=currentPlayer;
+  saveTipField(s=>{
+    if(!s.players)s.players={};
+    if(!s.players[player])s.players[player]={name:state.players[player]?.name||'',tips:{},kotips:{}};
+    if(!s.players[player].kotips)s.players[player].kotips={};
+    if(!s.players[player].kotips[id])s.players[player].kotips[id]={home:'',away:''};
+    s.players[player].kotips[id][side]=val;
+  });
 }
 function saveAllTips(){saveState();showToast('✅ Tipps gespeichert!');renderTippen()}
 
