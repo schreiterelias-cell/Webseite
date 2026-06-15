@@ -134,10 +134,21 @@ input[type=text]::placeholder{color:var(--muted)}
 #saveStatus.show{opacity:1}
 #saveStatus.st-saving{background:rgba(243,156,18,.15);color:#f39c12;border:1px solid rgba(243,156,18,.35)}
 #saveStatus.st-saved{background:rgba(46,204,113,.15);color:var(--green-light);border:1px solid rgba(46,204,113,.35)}
-#saveStatus.st-error{background:rgba(231,76,60,.15);color:var(--red);border:1px solid rgba(231,76,60,.4)}
 #saveStatus .spin{display:inline-block;width:10px;height:10px;border:2px solid currentColor;border-right-color:transparent;
   border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+/* GROSSE FEHLER-BANNER (mittig) */
+#saveError{position:fixed;top:0;left:0;right:0;z-index:9999;display:flex;justify-content:center;
+  padding-top:14vh;pointer-events:none;opacity:0;transition:opacity .25s}
+#saveError.show{opacity:1;pointer-events:auto}
+#saveError-box{background:rgba(40,8,8,.97);border:2px solid var(--red);border-radius:16px;
+  padding:22px 28px;max-width:90vw;width:380px;text-align:center;
+  box-shadow:0 10px 50px rgba(0,0,0,.6);font-family:'Barlow',sans-serif}
+#saveError-box .se-icon{font-size:2.2rem;margin-bottom:8px}
+#saveError-box .se-title{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:2px;
+  color:var(--red);margin-bottom:6px}
+#saveError-box .se-text{font-size:.92rem;color:var(--text);line-height:1.5}
+#saveError-box .se-sub{font-size:.78rem;color:var(--muted);margin-top:8px}
 /* MODAL */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;display:flex;align-items:center;justify-content:center;padding:16px}
 .modal-box{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:26px;width:100%;max-width:380px;box-shadow:0 8px 40px rgba(0,0,0,.6)}
@@ -183,6 +194,14 @@ input[type=text]::placeholder{color:var(--muted)}
 <body>
 
 <div id="saveStatus"></div>
+<div id="saveError" onclick="dismissSaveError()">
+  <div id="saveError-box">
+    <div class="se-icon">⚠️</div>
+    <div class="se-title" id="saveError-title">NICHT GESPEICHERT</div>
+    <div class="se-text" id="saveError-text">Dein Tipp konnte nicht gespeichert werden.</div>
+    <div class="se-sub">Wird automatisch erneut versucht... (Tippen zum Schließen)</div>
+  </div>
+</div>
 
 <header>
   <div>
@@ -503,24 +522,40 @@ async function loadStateFromSupabase(){
 let _saveStatusTimeout;
 function setSaveStatus(status){
   const el=document.getElementById('saveStatus');
+  const errEl=document.getElementById('saveError');
   if(!el)return;
   clearTimeout(_saveStatusTimeout);
-  el.classList.remove('st-saving','st-saved','st-error');
+  el.classList.remove('st-saving','st-saved');
   if(status==='saving'){
     el.innerHTML='<span class="spin"></span> Speichert...';
     el.classList.add('show','st-saving');
+    if(errEl)errEl.classList.remove('show');
   } else if(status==='saved'){
     el.innerHTML='✓ Gespeichert';
     el.classList.add('show','st-saved');
     _saveStatusTimeout=setTimeout(()=>el.classList.remove('show'),1800);
+    if(errEl)errEl.classList.remove('show');
   } else if(status==='error'){
-    el.innerHTML='⚠️ Nicht gespeichert – wird erneut versucht';
-    el.classList.add('show','st-error');
+    el.classList.remove('show');
+    if(errEl){
+      document.getElementById('saveError-title').textContent='NICHT GESPEICHERT';
+      document.getElementById('saveError-text').textContent='Dein Tipp konnte nicht gespeichert werden (Server nicht erreichbar).';
+      errEl.classList.add('show');
+    }
   } else if(status==='offline'){
-    el.innerHTML='⚠️ Keine Verbindung – lokal gespeichert';
-    el.classList.add('show','st-error');
-    _saveStatusTimeout=setTimeout(()=>el.classList.remove('show'),4000);
+    el.classList.remove('show');
+    if(errEl){
+      document.getElementById('saveError-title').textContent='KEINE VERBINDUNG';
+      document.getElementById('saveError-text').textContent='Dein Tipp ist nur lokal gespeichert. Bitte Internetverbindung prüfen!';
+      errEl.classList.add('show');
+    }
   }
+}
+
+// ── Fehler-Banner manuell schließen / verschwindet bei Erfolg ──
+function dismissSaveError(){
+  const errEl=document.getElementById('saveError');
+  if(errEl)errEl.classList.remove('show');
 }
 
 // ── Retry-Queue für fehlgeschlagene Speicherungen ───
